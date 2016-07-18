@@ -606,13 +606,6 @@ maybe_add_accepted_headers(_) ->
 accepted_headers() ->
     [{<<"Content-Type">>, <<"application/json">>}, {<<"Accept">>, <<"application/json">>}].
 
-maybe_add_auth_header({User, Password}) ->
-    Basic = list_to_binary("basic " ++ base64:encode_to_string(User ++ ":"++ Password)),
-    [{<<"authorization">>, Basic}];
-maybe_add_auth_header(admin) ->
-    [].
-
--spec create_path_with_binds(string(), list()) -> binary().
 create_path_with_binds(Base, ArgList) when is_list(ArgList) ->
     list_to_binary(
         lists:flatten(Base ++ ["/" ++ to_list(ArgName) ++ "/" ++ to_list(ArgValue)
@@ -629,17 +622,40 @@ to_list(Atom) when is_atom(Atom) ->
 to_list(Other) ->
     Other.
 
--spec request(binary(), method(), admin | {{binary(), binary()}, boolean()}) -> any.
-request(Path, "GET", Entity) ->
-    request(Path, "GET", [], Entity);
-request(Path, "DELETE", Entity) ->
-    request(Path, "DELETE", [], Entity).
-
--spec request(binary(), method(), list({atom(), any()}),
-              {headers, list()} | admin | {{binary(), binary()}, boolean()}) -> any.
-do_request(Path, Method, Body, {headers, Headers}) ->
+-spec get_request(binary()) -> any().
+get_request(Path) ->
+    setup(),
     {ok, Pid} = fusco:start_link("http://"++ ?HOST ++ ":" ++ integer_to_list(?PORT), []),
-    R = fusco:request(Pid, Path, Method, Headers, Body, 5000),
+    R = fusco:request(Pid, Path, "GET", [], [], 5000),
+    fusco:disconnect(Pid),
+    teardown(),
+    R.
+
+-spec post_request(binary(), [{atom(), any()}]) -> any().
+post_request(Path, Args) ->
+    setup(),
+    Body = jiffy:encode(maps:from_list(Args)),
+    {ok, Pid} = fusco:start_link("http://"++ ?HOST ++ ":" ++ integer_to_list(?PORT), []),
+    R = fusco:request(Pid, Path, "POST", accepted_headers(), Body, 5000),
+    fusco:disconnect(Pid),
+    teardown(),
+    R.
+
+-spec put_request(binary(), [{atom(), any()}]) -> any().
+put_request(Path, Args) ->
+    setup(),
+    Body = jiffy:encode(maps:from_list(Args)),
+    {ok, Pid} = fusco:start_link("http://"++ ?HOST ++ ":" ++ integer_to_list(?PORT), []),
+    R = fusco:request(Pid, Path, "PUT", accepted_headers(), Body, 5000),
+    fusco:disconnect(Pid),
+    teardown(),
+    R.
+
+-spec delete_request(binary()) -> any().
+delete_request(Path) ->
+    setup(),
+    {ok, Pid} = fusco:start_link("http://"++ ?HOST ++ ":" ++ integer_to_list(?PORT), []),
+    R = fusco:request(Pid, Path, "DELETE", [], [], 5000),
     fusco:disconnect(Pid),
     teardown(),
     R.
